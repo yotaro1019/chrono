@@ -40,6 +40,26 @@ CH_VEHICLE_API const std::string& GetDataPath();
 /// data directory.
 CH_VEHICLE_API std::string GetDataFile(const std::string& filename);
 
+//current dir
+CH_VEHICLE_API void SetCurrentDirPath(const std::string& path);
+
+CH_VEHICLE_API const std::string& GetCurrentDirPath();
+
+CH_VEHICLE_API std::string GetCurrentDirDataFile(const std::string& filename);
+
+//input dir
+CH_VEHICLE_API void SetinputDirPath(const std::string& input_dir_name);
+
+CH_VEHICLE_API const std::string& GetinputDirPath();
+
+CH_VEHICLE_API std::string GetinputDirDataFile(const std::string& filename);
+
+//output dir
+CH_VEHICLE_API void SetoutputDirPath(const std::string& output_dir_name);
+
+CH_VEHICLE_API const std::string& GetoutputDirPath();
+
+CH_VEHICLE_API std::string GetoutputDirDataFile(const std::string& filename);
 /// @} vehicle
 
 }  // end namespace vehicle
