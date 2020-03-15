@@ -193,6 +193,14 @@ class CH_VEHICLE_API ChWheeledVehicle : public ChVehicle {
                              const ChTerrain& terrain                ///< [in] reference to the terrain system
     );
 
+    //with aerodynamic force
+    virtual void Synchronize(double time,                            ///< [in] current time
+                             const ChDriver::Inputs& driver_inputs,  ///< [in] current driver inputs
+                             const ChTerrain& terrain                ///< [in] reference to the terrain system
+                             ChVector<>& act_fforce,                 ///< [in] input fforce(fx,fy,fz)
+                             ChVector<>& act_fmoment                 ///< [in] input moment(mx,my,mz)
+    );
+
     /// Advance the state of this vehicle by the specified time step.
     /// In addition to advancing the state of the multibody system (if the vehicle owns the underlying system), this
     /// function also advances the state of the associated powertrain and the states of all associated tires.

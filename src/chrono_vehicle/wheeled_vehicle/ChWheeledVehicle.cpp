@@ -90,6 +90,35 @@ void ChWheeledVehicle::Synchronize(double time, const ChDriver::Inputs& driver_i
     m_chassis->Synchronize(time);
 }
 
+void ChWheeledVehicle::Synchronize(double time, const ChDriver::Inputs& driver_inputs, const ChTerrain& terrain, ChVector<>& act_fforce, ChVector<>& act_fmoment) {
+    double powertrain_torque = 0;
+    if (m_powertrain) {
+        // Extract the torque from the powertrain.
+        powertrain_torque = m_powertrain->GetOutputTorque();
+        // Synchronize the associated powertrain system (pass throttle input).
+        m_powertrain->Synchronize(time, driver_inputs.m_throttle);
+    }
+
+    // Apply powertrain torque to the driveline's input shaft.
+    m_driveline->Synchronize(powertrain_torque);
+
+    // Let the steering subsystems process the steering input.
+    for (unsigned int i = 0; i < m_steerings.size(); i++) {
+        m_steerings[i]->Synchronize(time, driver_inputs.m_steering);
+    }
+
+    // Synchronize the vehicle's axle subsystems
+    for (auto& axle : m_axles) {
+        for (auto& wheel : axle->GetWheels()) {
+            if (wheel->m_tire)
+                wheel->m_tire->Synchronize(time, terrain);
+        }
+        axle->Synchronize(driver_inputs.m_braking);
+    }
+
+    m_chassis->Synchronize(time, act_fforce, act_fmoment);
+}
+
 // -----------------------------------------------------------------------------
 // Advance the state of this vehicle by the specified time step.
 // -----------------------------------------------------------------------------
