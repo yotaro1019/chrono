@@ -25,6 +25,7 @@
 //
 #include "chrono_vehicle/ChApiVehicle.h"
 #include "chrono_vehicle/ChChassis.h"
+#include "chrono_vehicle/ChPowertrain.h"
 #include "chrono_vehicle/wheeled_vehicle/ChAntirollBar.h"
 #include "chrono_vehicle/wheeled_vehicle/ChBrake.h"
 #include "chrono_vehicle/wheeled_vehicle/ChDrivelineWV.h"
@@ -62,6 +63,9 @@ CH_VEHICLE_API ChColor ReadColorJSON(const rapidjson::Value& a);
 
 /// Load and return a chassis subsystem from the specified JSON file.
 CH_VEHICLE_API std::shared_ptr<ChChassis> ReadChassisJSON(const std::string& filename);
+
+/// Load and return a powertrain subsystem from the specified JSON file.
+std::shared_ptr<ChPowertrain> ReadPowertrainJSON(const std::string& filename); 
 
 ///  Load and return a suspension subsystem from the specified JSON file.
 CH_VEHICLE_API std::shared_ptr<ChSuspension> ReadSuspensionJSON(const std::string& filename);
