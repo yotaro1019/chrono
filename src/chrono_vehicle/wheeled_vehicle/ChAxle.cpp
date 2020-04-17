@@ -50,6 +50,7 @@ void ChAxle::Initialize(std::shared_ptr<ChBodyAuxRef> chassis,
     m_suspension->Initialize(chassis, susp_location, tierod_body, steering_index, left_ang_vel, right_ang_vel);
     m_brake_left->Initialize(m_suspension, LEFT);
     m_brake_right->Initialize(m_suspension, RIGHT);
+
     if (wheel_separation > 0) {
         assert(m_wheels.size() == 4);
         m_wheels[0]->Initialize(m_suspension->GetSpindle(LEFT), LEFT, -wheel_separation / 2);    // inner left

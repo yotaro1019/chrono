@@ -166,21 +166,43 @@ void WheeledVehicle::Create(const std::string& filename) {
         }
 
         // Left and right wheels
-        int num_wheels = 2;
-        m_axles[i]->m_wheels.resize(num_wheels);
-        file_name = d["Axles"][i]["Left Wheel Input File"].GetString();
-        m_axles[i]->m_wheels[0] = ReadWheelJSON(vehicle::GetDataFile(file_name));
+        if(m_wheel_distance[i] == 0.0){
+            int num_wheels = 2;
+            m_axles[i]->m_wheels.resize(num_wheels);
+            file_name = d["Axles"][i]["Left Wheel Input File"].GetString();
+            m_axles[i]->m_wheels[0] = ReadWheelJSON(vehicle::GetDataFile(file_name));
 
-        file_name = d["Axles"][i]["Right Wheel Input File"].GetString();
-        m_axles[i]->m_wheels[1] = ReadWheelJSON(vehicle::GetDataFile(file_name));
+            file_name = d["Axles"][i]["Right Wheel Input File"].GetString();
+            m_axles[i]->m_wheels[1] = ReadWheelJSON(vehicle::GetDataFile(file_name));
 
-        // Left and right brakes
-        file_name = d["Axles"][i]["Left Brake Input File"].GetString();
-        m_axles[i]->m_brake_left = ReadBrakeJSON(vehicle::GetDataFile(file_name));
+            // Left and right brakes
+            file_name = d["Axles"][i]["Left Brake Input File"].GetString();
+            m_axles[i]->m_brake_left = ReadBrakeJSON(vehicle::GetDataFile(file_name));
 
-        file_name = d["Axles"][i]["Right Brake Input File"].GetString();
-        m_axles[i]->m_brake_right = ReadBrakeJSON(vehicle::GetDataFile(file_name));
+            file_name = d["Axles"][i]["Right Brake Input File"].GetString();
+            m_axles[i]->m_brake_right = ReadBrakeJSON(vehicle::GetDataFile(file_name));
+        }else{
+            int num_wheels = 4;
+            m_axles[i]->m_wheels.resize(num_wheels);
+            file_name = d["Axles"][i]["Left Wheel Input File"].GetString();
+            m_axles[i]->m_wheels[0] = ReadWheelJSON(vehicle::GetDataFile(file_name));
 
+            file_name = d["Axles"][i]["Left Wheel Input File"].GetString();
+            m_axles[i]->m_wheels[1] = ReadWheelJSON(vehicle::GetDataFile(file_name));
+
+            file_name = d["Axles"][i]["Right Wheel Input File"].GetString();
+            m_axles[i]->m_wheels[2] = ReadWheelJSON(vehicle::GetDataFile(file_name));
+
+            file_name = d["Axles"][i]["Right Wheel Input File"].GetString();
+            m_axles[i]->m_wheels[3] = ReadWheelJSON(vehicle::GetDataFile(file_name));
+        }
+            // Left and right brakes
+            file_name = d["Axles"][i]["Left Brake Input File"].GetString();
+            m_axles[i]->m_brake_left = ReadBrakeJSON(vehicle::GetDataFile(file_name));
+
+            file_name = d["Axles"][i]["Right Brake Input File"].GetString();
+            m_axles[i]->m_brake_right = ReadBrakeJSON(vehicle::GetDataFile(file_name));
+        
         if (d["Axles"][i].HasMember("Output")) {
             bool output = d["Axles"][i]["Output"].GetBool();
             m_axles[i]->SetOutput(output);
@@ -214,7 +236,7 @@ void WheeledVehicle::Create(const std::string& filename) {
 
     GetLog() << "Loaded JSON: " << filename.c_str() << "\n";
     GetLog() << m_wheel_distance << "\n";
-    exit();
+    
 }
 
 // -----------------------------------------------------------------------------
@@ -233,10 +255,10 @@ void WheeledVehicle::Initialize(const ChCoordsys<>& chassisPos, double chassisFw
         int str_index = m_suspSteering[i];
         if (str_index == -1) {
             m_axles[i]->Initialize(m_chassis->GetBody(), m_suspLocations[i], m_arbLocations[i], m_chassis->GetBody(),
-                                   -1, 0.0);
+                                   -1, m_wheel_distance[i]);
         } else {
             m_axles[i]->Initialize(m_chassis->GetBody(), m_suspLocations[i], m_arbLocations[i],
-                                   m_steerings[str_index]->GetSteeringLink(), str_index, 0.0);
+                                   m_steerings[str_index]->GetSteeringLink(), str_index, m_wheel_distance[i]);
         }
     }
 
