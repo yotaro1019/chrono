@@ -80,6 +80,7 @@ void WheeledVehicle::Create(const std::string& filename) {
 
     // Resize arrays
     m_axles.resize(m_num_axles);
+    m_wheel_distance.resize(m_num_axles);
     m_suspLocations.resize(m_num_axles);
     m_suspSteering.resize(m_num_axles, -1);
     m_arbLocations.resize(m_num_axles);
@@ -148,6 +149,13 @@ void WheeledVehicle::Create(const std::string& filename) {
             m_suspSteering[i] = d["Axles"][i]["Steering Index"].GetInt();
         }
 
+        // distance of wheels (if applicable)
+        if (d["Axles"][i].HasMember("wheel_distance")) {
+            m_wheel_distance[i] = d["Axles"][i]["wheel_distance"].GetDouble();
+        }else{
+            m_wheel_distance[i] = 0.0;
+        }
+        
         // Antirollbar (if applicable)
         if (d["Axles"][i].HasMember("Antirollbar Input File")) {
             assert(m_axles[i]->m_suspension->IsIndependent());
@@ -205,6 +213,8 @@ void WheeledVehicle::Create(const std::string& filename) {
     }
 
     GetLog() << "Loaded JSON: " << filename.c_str() << "\n";
+    GetLog() << m_wheel_distance << "\n";
+    exit();
 }
 
 // -----------------------------------------------------------------------------

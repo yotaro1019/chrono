@@ -54,6 +54,7 @@ class CH_VEHICLE_API WheeledVehicle : public ChWheeledVehicle {
 
   private:
     int m_num_axles;                           // number of axles for this vehicle
+    std::vector<double> m_wheel_distance;      // distance of wheel(both side are sace distance)
     std::vector<ChVector<> > m_suspLocations;  // locations of the suspensions relative to chassis
     std::vector<ChVector<> > m_arbLocations;   // locations of the antirollbar subsystems relative to chassis
     std::vector<int> m_suspSteering;           // indexes of steering subsystems (-1 indicates a non-steered suspension)
