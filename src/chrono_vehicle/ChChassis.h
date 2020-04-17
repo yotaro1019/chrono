@@ -143,7 +143,8 @@ class CH_VEHICLE_API ChChassis : public ChPart {
     /// The base class implementation applies aerodynamic drag forces to the 
     /// chassis body (if enabled).
     virtual void Synchronize(double time);
-
+    virtual void Synchronize(double time, ChVector<> act_fforce, ChVector<>  act_fmoment);
+    
   protected:
     std::shared_ptr<ChBodyAuxRef> m_body;              ///< handle to the chassis body
     std::vector<std::shared_ptr<ChMarker>> m_markers;  ///< list of user-defined markers

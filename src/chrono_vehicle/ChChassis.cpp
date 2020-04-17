@@ -120,5 +120,17 @@ void ChChassis::Synchronize(double time) {
     m_body->Accumulate_force(F, ChVector<>(0), true);
 }
 
+void ChChassis::Synchronize(double time, ChVector<> act_fforce, ChVector<>  act_fmoment){
+    // Apply aerodynamic drag force at COM
+    ChVector<> COM_POS_global = GetPos();
+    m_body->Empty_forces_accumulators();
+    m_body->Accumulate_force(act_fforce, COM_POS_global, false);
+    m_body->Accumulate_torque(act_fmoment, false);   
+
+    ChVector<> COM_force = m_body->Get_Xforce();
+    ChVector<> COM_torque = m_body->Get_Xtorque();
+
+}
+
 }  // end namespace vehicle
 }  // end namespace chrono

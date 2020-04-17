@@ -196,7 +196,7 @@ class CH_VEHICLE_API ChWheeledVehicle : public ChVehicle {
     //with aerodynamic force
     virtual void Synchronize(double time,                            ///< [in] current time
                              const ChDriver::Inputs& driver_inputs,  ///< [in] current driver inputs
-                             const ChTerrain& terrain                ///< [in] reference to the terrain system
+                             const ChTerrain& terrain,                ///< [in] reference to the terrain system
                              ChVector<>& act_fforce,                 ///< [in] input fforce(fx,fy,fz)
                              ChVector<>& act_fmoment                 ///< [in] input moment(mx,my,mz)
     );
