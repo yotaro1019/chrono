@@ -235,7 +235,7 @@ void WheeledVehicle::Create(const std::string& filename) {
     }
 
     GetLog() << "Loaded JSON: " << filename.c_str() << "\n";
-    GetLog() << m_wheel_distance << "\n";
+
     
 }
 
