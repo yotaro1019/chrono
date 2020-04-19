@@ -29,6 +29,7 @@
 #include "chrono/utils/ChUtilsInputOutput.h"
 
 #include "chrono_vehicle/ChVehicleModelData.h"
+#include "chrono_vehicle/ChWorldFrame.h"
 #include "chrono_vehicle/terrain/RigidTerrain.h"
 
 #include "chrono_vehicle/utils/ChUtilsJSON.h"
@@ -84,18 +85,24 @@ void RigidTerrain::LoadPatch(const rapidjson::Value& d) {
     assert(d.HasMember("Geometry"));
     assert(d.HasMember("Contact Material"));
 
-    // Create patch with specified geometry
+    // Create patch with specified geometry and contact material
     std::shared_ptr<Patch> patch;
     auto loc = ReadVectorJSON(d["Location"]);
     auto rot = ReadQuaternionJSON(d["Orientation"]);
 
+    // Create a default material (consistent with containing system) and overwrite properties
+    assert(d.HasMember("Contact Material"));
+    MaterialInfo minfo = ReadMaterialInfoJSON(d["Contact Material"]);
+    auto material = minfo.CreateMaterial(m_system->GetContactMethod());
+
+    // Create patch geometry (infer type based on existing keys)
     if (d["Geometry"].HasMember("Dimensions")) {
         auto size = ReadVectorJSON(d["Geometry"]["Dimensions"]);
-        patch = AddPatch(ChCoordsys<>(loc, rot), size);
+        patch = AddPatch(material, loc, ChMatrix33<>(rot).Get_A_Zaxis(), size.x(), size.y(), size.z());
     } else if (d["Geometry"].HasMember("Mesh Filename")) {
         std::string mesh_file = d["Geometry"]["Mesh Filename"].GetString();
         std::string mesh_name = d["Geometry"]["Mesh Name"].GetString();
-        patch = AddPatch(ChCoordsys<>(loc, rot), vehicle::GetDataFile(mesh_file), mesh_name);
+        patch = AddPatch(material, ChCoordsys<>(loc, rot), vehicle::GetDataFile(mesh_file), mesh_name);
     } else if (d["Geometry"].HasMember("Height Map Filename")) {
         std::string bmp_file = d["Geometry"]["Height Map Filename"].GetString();
         std::string mesh_name = d["Geometry"]["Mesh Name"].GetString();
@@ -103,25 +110,7 @@ void RigidTerrain::LoadPatch(const rapidjson::Value& d) {
         double sy = d["Geometry"]["Size"][1u].GetDouble();
         double hMin = d["Geometry"]["Height Range"][0u].GetDouble();
         double hMax = d["Geometry"]["Height Range"][1u].GetDouble();
-        patch = AddPatch(ChCoordsys<>(loc, rot), vehicle::GetDataFile(bmp_file), mesh_name, sx, sy, hMin, hMax);
-    }
-
-    // Set contact material properties
-    float mu = d["Contact Material"]["Coefficient of Friction"].GetFloat();
-    float cr = d["Contact Material"]["Coefficient of Restitution"].GetFloat();
-    patch->SetContactFrictionCoefficient(mu);
-    patch->SetContactRestitutionCoefficient(cr);
-    if (d["Contact Material"].HasMember("Properties")) {
-        float ym = d["Contact Material"]["Properties"]["Young Modulus"].GetFloat();
-        float pr = d["Contact Material"]["Properties"]["Poisson Ratio"].GetFloat();
-        patch->SetContactMaterialProperties(ym, pr);
-    }
-    if (d["Contact Material"].HasMember("Coefficients")) {
-        float kn = d["Contact Material"]["Coefficients"]["Normal Stiffness"].GetFloat();
-        float gn = d["Contact Material"]["Coefficients"]["Normal Damping"].GetFloat();
-        float kt = d["Contact Material"]["Coefficients"]["Tangential Stiffness"].GetFloat();
-        float gt = d["Contact Material"]["Coefficients"]["Tangential Damping"].GetFloat();
-        patch->SetContactMaterialCoefficients(kn, gn, kt, gt);
+        patch = AddPatch(material, ChCoordsys<>(loc, rot), vehicle::GetDataFile(bmp_file), mesh_name, sx, sy, hMin, hMax);
     }
 
     // Set visualization data
@@ -147,7 +136,9 @@ void RigidTerrain::LoadPatch(const rapidjson::Value& d) {
 // Functions to add terrain patches with various definitions
 // (box, mesh, height-field)
 // -----------------------------------------------------------------------------
-void RigidTerrain::AddPatch(std::shared_ptr<Patch> patch, const ChCoordsys<>& position) {
+void RigidTerrain::AddPatch(std::shared_ptr<Patch> patch,
+                            const ChCoordsys<>& position,
+                            std::shared_ptr<ChMaterialSurface> material) {
     m_num_patches++;
 
     // Create the rigid body for this patch (fixed)
@@ -159,70 +150,68 @@ void RigidTerrain::AddPatch(std::shared_ptr<Patch> patch, const ChCoordsys<>& po
     patch->m_body->SetBodyFixed(true);
     patch->m_body->SetCollide(true);
     m_system->AddBody(patch->m_body);
+    
+    // Cache coefficient of friction
+    patch->m_friction = material->GetSfriction();
 
-    // Initialize contact material properties
-    patch->m_friction = 0.7f;
-    switch (m_system->GetContactMethod()) {
-        case ChMaterialSurface::NSC:
-            patch->m_body->GetMaterialSurfaceNSC()->SetFriction(patch->m_friction);
-            patch->m_body->GetMaterialSurfaceNSC()->SetRestitution(0.1f);
-            break;
-        case ChMaterialSurface::SMC:
-            patch->m_body->GetMaterialSurfaceSMC()->SetFriction(patch->m_friction);
-            patch->m_body->GetMaterialSurfaceSMC()->SetRestitution(0.1f);
-            patch->m_body->GetMaterialSurfaceSMC()->SetYoungModulus(2e5f);
-            patch->m_body->GetMaterialSurfaceSMC()->SetPoissonRatio(0.3f);
-            patch->m_body->GetMaterialSurfaceSMC()->SetKn(2e5f);
-            patch->m_body->GetMaterialSurfaceSMC()->SetGn(40.0f);
-            patch->m_body->GetMaterialSurfaceSMC()->SetKt(2e5f);
-            patch->m_body->GetMaterialSurfaceSMC()->SetGt(20.0f);
-            break;
-    }
-
-    // Insert in vector and return a reference to the patch
     m_patches.push_back(patch);
 }
 
 // -----------------------------------------------------------------------------
 
-std::shared_ptr<RigidTerrain::Patch> RigidTerrain::AddPatch(const ChCoordsys<>& position,
-                                                            const ChVector<>& size,
+std::shared_ptr<RigidTerrain::Patch> RigidTerrain::AddPatch(std::shared_ptr<ChMaterialSurface> material,
+                                                            const ChVector<>& location,
+                                                            const ChVector<>& normal,
+                                                            double length,
+                                                            double width,
+                                                            double thickness,
                                                             bool tiled,
                                                             double max_tile_size,
                                                             bool visualization) {
-    auto patch = chrono_types::make_shared<BoxPatch>();
-    AddPatch(patch, position);
+    ChVector<> up = normal.GetNormalized();
+    ChVector<> lateral = Vcross(up, ChWorldFrame::Forward());
+    ChVector<> forward = Vcross(lateral, up);
+    ChMatrix33<> rot;
+    rot.Set_A_axis(forward, lateral, up);
 
-    // Create collision model (box) attached to the patch body
+    auto patch = chrono_types::make_shared<BoxPatch>();
+    AddPatch(patch, ChCoordsys<>(location - 0.5 * thickness * up, rot.Get_A_quaternion()), material);
+
+    // Create the collision model (one or more boxes) attached to the patch body
     patch->m_body->GetCollisionModel()->ClearModel();
     if (tiled) {
-        int nX = (int)std::ceil(size.x() / max_tile_size);
-        int nY = (int)std::ceil(size.y() / max_tile_size);
-        double sizeX1 = size.x() / nX;
-        double sizeY1 = size.y() / nY;
-        for (int ix = 0; ix < nX; ix++) {
-            for (int iy = 0; iy < nY; iy++) {
-                patch->m_body->GetCollisionModel()->AddBox(
-                    0.5 * sizeX1, 0.5 * sizeY1, 0.5 * size.z(),
-                    ChVector<>((sizeX1 - size.x()) / 2 + ix * sizeX1, (sizeY1 - size.y()) / 2 + iy * sizeY1, 0));
-            }
-        }
+        //// RADU : TODO tiled collision shapes
+        ////int nX = (int)std::ceil(size.x() / max_tile_size);
+        ////int nY = (int)std::ceil(size.y() / max_tile_size);
+        ////double sizeX1 = size.x() / nX;
+        ////double sizeY1 = size.y() / nY;
+        ////for (int ix = 0; ix < nX; ix++) {
+        ////    for (int iy = 0; iy < nY; iy++) {
+        ////        patch->m_body->GetCollisionModel()->AddBox(                                                      //
+        ////            material,                                                                                    //
+        ////            0.5 * sizeX1, 0.5 * sizeY1, 0.5 * size.z(),                                                  //
+        ////            ChVector<>((sizeX1 - size.x()) / 2 + ix * sizeX1, (sizeY1 - size.y()) / 2 + iy * sizeY1, 0)  //
+        ////        );
+        ////    }
+        ////}
     } else {
-        patch->m_body->GetCollisionModel()->AddBox(0.5 * size.x(), 0.5 * size.y(), 0.5 * size.z());
+        patch->m_body->GetCollisionModel()->AddBox(material, 0.5 * length, 0.5 * width, 0.5 * thickness);
     }
     patch->m_body->GetCollisionModel()->BuildModel();
 
     // Create visualization asset
     if (visualization) {
         auto box = chrono_types::make_shared<ChBoxShape>();
-        box->GetBoxGeometry().SetLengths(size);
+        box->GetBoxGeometry().SetLengths(ChVector<>(length, width, thickness));
         box->Pos = VNULL;
         patch->m_body->AddAsset(box);
     }
 
-    patch->m_hsize = size / 2;
-    patch->m_normal = ChMatrix33<>(position.rot).Get_A_Zaxis();
-    patch->m_radius = size.Length() / 2;
+    patch->m_location = location;
+    patch->m_normal = up;
+    patch->m_hlength = length / 2;
+    patch->m_hwidth = width / 2; 
+    patch->m_radius = ChVector<>(length, width, thickness).Length() / 2;
     patch->m_type = PatchType::BOX;
 
     return patch;
@@ -230,13 +219,14 @@ std::shared_ptr<RigidTerrain::Patch> RigidTerrain::AddPatch(const ChCoordsys<>& 
 
 // -----------------------------------------------------------------------------
 
-std::shared_ptr<RigidTerrain::Patch> RigidTerrain::AddPatch(const ChCoordsys<>& position,
+std::shared_ptr<RigidTerrain::Patch> RigidTerrain::AddPatch(std::shared_ptr<ChMaterialSurface> material,
+                                                            const ChCoordsys<>& position,
                                                             const std::string& mesh_file,
                                                             const std::string& mesh_name,
                                                             double sweep_sphere_radius,
                                                             bool visualization) {
     auto patch = chrono_types::make_shared<MeshPatch>();
-    AddPatch(patch, position);
+    AddPatch(patch, position, material);
 
     // Load mesh from file
     patch->m_trimesh = chrono_types::make_shared<geometry::ChTriangleMeshConnected>();
@@ -244,7 +234,7 @@ std::shared_ptr<RigidTerrain::Patch> RigidTerrain::AddPatch(const ChCoordsys<>& 
 
     // Create the collision model
     patch->m_body->GetCollisionModel()->ClearModel();
-    patch->m_body->GetCollisionModel()->AddTriangleMesh(patch->m_trimesh, true, false, VNULL, ChMatrix33<>(1),
+    patch->m_body->GetCollisionModel()->AddTriangleMesh(material, patch->m_trimesh, true, false, VNULL, ChMatrix33<>(1),
                                                         sweep_sphere_radius);
     patch->m_body->GetCollisionModel()->BuildModel();
 
@@ -272,7 +262,8 @@ std::shared_ptr<RigidTerrain::Patch> RigidTerrain::AddPatch(const ChCoordsys<>& 
 
 // -----------------------------------------------------------------------------
 
-std::shared_ptr<RigidTerrain::Patch> RigidTerrain::AddPatch(const ChCoordsys<>& position,
+std::shared_ptr<RigidTerrain::Patch> RigidTerrain::AddPatch(std::shared_ptr<ChMaterialSurface> material,
+                                                            const ChCoordsys<>& position,
                                                             const std::string& heightmap_file,
                                                             const std::string& mesh_name,
                                                             double sizeX,
@@ -282,7 +273,7 @@ std::shared_ptr<RigidTerrain::Patch> RigidTerrain::AddPatch(const ChCoordsys<>& 
                                                             double sweep_sphere_radius,
                                                             bool visualization) {
     auto patch = chrono_types::make_shared<MeshPatch>();
-    AddPatch(patch, position);
+    AddPatch(patch, position, material);
 
     // Read the BMP file and extract number of pixels.
     BMP hmap;
@@ -292,7 +283,7 @@ std::shared_ptr<RigidTerrain::Patch> RigidTerrain::AddPatch(const ChCoordsys<>& 
     int nv_x = hmap.TellWidth();
     int nv_y = hmap.TellHeight();
 
-    // Construct a triangular mesh of sizeX x sizeY.
+    // Construct a triangular mesh of sizeX x sizeY (as specified in an ISO frame).
     // Each pixel in the BMP represents a vertex.
     // The gray level of a pixel is mapped to the height range, with black corresponding
     // to hMin and white corresponding to hMax.
@@ -342,7 +333,7 @@ std::shared_ptr<RigidTerrain::Patch> RigidTerrain::AddPatch(const ChCoordsys<>& 
             // Map gray level to vertex height
             double z = hMin + gray * h_scale;
             // Set vertex location
-            vertices[iv] = ChVector<>(x, y, z);
+            vertices[iv] = ChWorldFrame::FromISO(ChVector<>(x, y, z));
             // Initialize vertex normal to (0, 0, 0).
             normals[iv] = ChVector<>(0, 0, 0);
             // Assign color white to all vertices
@@ -387,12 +378,12 @@ std::shared_ptr<RigidTerrain::Patch> RigidTerrain::AddPatch(const ChCoordsys<>& 
 
     // Set the normals to the average values.
     for (unsigned int in = 0; in < n_verts; ++in) {
-        normals[in] /= (double)accumulators[in];
+        normals[in] = ChWorldFrame::FromISO(normals[in] / (double)accumulators[in]);
     }
 
     // Create contact geometry.
     patch->m_body->GetCollisionModel()->ClearModel();
-    patch->m_body->GetCollisionModel()->AddTriangleMesh(patch->m_trimesh, true, false, VNULL, ChMatrix33<>(1),
+    patch->m_body->GetCollisionModel()->AddTriangleMesh(material, patch->m_trimesh, true, false, VNULL, ChMatrix33<>(1),
                                                         sweep_sphere_radius);
     patch->m_body->GetCollisionModel()->BuildModel();
 
@@ -414,45 +405,6 @@ std::shared_ptr<RigidTerrain::Patch> RigidTerrain::AddPatch(const ChCoordsys<>& 
 // -----------------------------------------------------------------------------
 // Functions to modify properties of a patch
 // -----------------------------------------------------------------------------
-void RigidTerrain::Patch::SetContactFrictionCoefficient(float friction_coefficient) {
-    switch (m_body->GetContactMethod()) {
-        case ChMaterialSurface::NSC:
-            m_body->GetMaterialSurfaceNSC()->SetFriction(friction_coefficient);
-            break;
-        case ChMaterialSurface::SMC:
-            m_body->GetMaterialSurfaceSMC()->SetFriction(friction_coefficient);
-            break;
-    }
-
-    m_friction = friction_coefficient;
-}
-
-void RigidTerrain::Patch::SetContactRestitutionCoefficient(float restitution_coefficient) {
-    switch (m_body->GetContactMethod()) {
-        case ChMaterialSurface::NSC:
-            m_body->GetMaterialSurfaceNSC()->SetRestitution(restitution_coefficient);
-            break;
-        case ChMaterialSurface::SMC:
-            m_body->GetMaterialSurfaceSMC()->SetRestitution(restitution_coefficient);
-            break;
-    }
-}
-
-void RigidTerrain::Patch::SetContactMaterialProperties(float young_modulus, float poisson_ratio) {
-    if (m_body->GetContactMethod() == ChMaterialSurface::SMC) {
-        m_body->GetMaterialSurfaceSMC()->SetYoungModulus(young_modulus);
-        m_body->GetMaterialSurfaceSMC()->SetPoissonRatio(poisson_ratio);
-    }
-}
-
-void RigidTerrain::Patch::SetContactMaterialCoefficients(float kn, float gn, float kt, float gt) {
-    if (m_body->GetContactMethod() == ChMaterialSurface::SMC) {
-        m_body->GetMaterialSurfaceSMC()->SetKn(kn);
-        m_body->GetMaterialSurfaceSMC()->SetGn(gn);
-        m_body->GetMaterialSurfaceSMC()->SetKt(kt);
-        m_body->GetMaterialSurfaceSMC()->SetGt(gt);
-    }
-}
 
 void RigidTerrain::Patch::SetColor(const ChColor& color) {
     auto acolor = chrono_types::make_shared<ChColorAsset>(color);
@@ -476,49 +428,49 @@ class RTContactCallback : public ChContactContainer::AddContactCallback {
         //// TODO: also accomodate terrain contact with FEA meshes.
 
         // Loop over all patch bodies and check if this contact involves one of them.
+        ChBody* body_patch = nullptr;
         ChBody* body_other = nullptr;
-        bool process = false;
+        collision::ChCollisionShape* shape_other = nullptr;
         for (auto patch : m_terrain->GetPatches()) {
             auto model = patch->GetGroundBody()->GetCollisionModel().get();
             if (model == contactinfo.modelA) {
+                body_patch = patch->GetGroundBody().get();
                 body_other = dynamic_cast<ChBody*>(contactinfo.modelB->GetContactable());
-                process = true;
+                shape_other = contactinfo.shapeB;
                 break;
             }
             if (model == contactinfo.modelB) {
+                body_patch = patch->GetGroundBody().get();
                 body_other = dynamic_cast<ChBody*>(contactinfo.modelA->GetContactable());
-                process = true;
+                shape_other = contactinfo.shapeA;
                 break;
             }
         }
 
         // Do nothing if this contact does not involve a terrain body or if the other contactable
-        // is not a body.
-        if (!process || !body_other)
+        // is not a body or if the collsion does not involve a shape (e.g., a contact added by the user)
+        if (!body_patch || !body_other || !shape_other)
             return;
+
+        // Containing system and current combination strategy for composite materials
+        auto sys = body_patch->GetSystem();
+        auto& strategy = sys->GetMaterialCompositionStrategy();
 
         // Find the terrain coefficient of friction at the location of current contact.
         // Arbitrarily use the collision point on modelA.
-        auto friction_terrain = (*m_friction_fun)(contactinfo.vpA.x(), contactinfo.vpA.y());
-
-        // Get the current combination strategy for composite materials.
-        auto& strategy = body_other->GetSystem()->GetMaterialCompositionStrategy();
+        auto friction_terrain = (*m_friction_fun)(contactinfo.vpA);
 
         // Set friction in composite material based on contact formulation.
-        switch (body_other->GetContactMethod()) {
-            case ChMaterialSurface::NSC: {
-                auto mat_other = std::static_pointer_cast<ChMaterialSurfaceNSC>(body_other->GetMaterialSurface());
-                auto friction_other = mat_other->sliding_friction;
-                auto friction = strategy.CombineFriction(friction_terrain, friction_other);
+        auto friction_other = shape_other->GetMaterial()->sliding_friction;
+        auto friction = strategy.CombineFriction(friction_terrain, friction_other);
+        switch (sys->GetContactMethod()) {
+            case ChContactMethod::NSC: {
                 auto mat = static_cast<ChMaterialCompositeNSC* const>(material);
                 mat->static_friction = friction;
                 mat->sliding_friction = friction;
                 break;
             }
-            case ChMaterialSurface::SMC: {
-                auto mat_other = std::static_pointer_cast<ChMaterialSurfaceSMC>(body_other->GetMaterialSurface());
-                auto friction_other = mat_other->sliding_friction;
-                auto friction = strategy.CombineFriction(friction_terrain, friction_other);
+            case ChContactMethod::SMC: {
                 auto mat = static_cast<ChMaterialCompositeSMC* const>(material);
                 mat->mu_eff = friction;
                 break;
@@ -552,49 +504,49 @@ void RigidTerrain::Initialize() {
 // friction  at the specified location.
 // This is done by casting vertical rays into each patch collision model.
 // -----------------------------------------------------------------------------
-double RigidTerrain::GetHeight(double x, double y) const {
+double RigidTerrain::GetHeight(const ChVector<>& loc) const {
     double height;
     ChVector<> normal;
     float friction;
 
-    bool hit = FindPoint(x, y, height, normal, friction);
+    bool hit = FindPoint(loc, height, normal, friction);
 
     return hit ? height : 0.0;
 }
 
-ChVector<> RigidTerrain::GetNormal(double x, double y) const {
+ChVector<> RigidTerrain::GetNormal(const ChVector<>& loc) const {
     double height;
     ChVector<> normal;
     float friction;
 
-    bool hit = FindPoint(x, y, height, normal, friction);
+    bool hit = FindPoint(loc, height, normal, friction);
 
-    return normal;
+    return hit ? normal : ChWorldFrame::Vertical();
 }
 
-float RigidTerrain::GetCoefficientFriction(double x, double y) const {
+float RigidTerrain::GetCoefficientFriction(const ChVector<>& loc) const {
     if (m_friction_fun)
-        return (*m_friction_fun)(x, y);
+        return (*m_friction_fun)(loc);
 
     double height;
     ChVector<> normal;
     float friction;
 
-    bool hit = FindPoint(x, y, height, normal, friction);
+    bool hit = FindPoint(loc, height, normal, friction);
 
-    return friction;
+    return hit ? friction : 0.8f;
 }
 
-bool RigidTerrain::FindPoint(double x, double y, double& height, ChVector<>& normal, float& friction) const {
+bool RigidTerrain::FindPoint(const ChVector<> loc, double& height, ChVector<>& normal, float& friction) const {
     bool hit = false;
     height = std::numeric_limits<double>::lowest();
-    normal = ChVector<>(0, 0, 1);
+    normal = ChWorldFrame::Vertical();
     friction = 0.8f;
 
     for (auto patch : m_patches) {
         double pheight;
         ChVector<> pnormal;
-        bool phit = patch->FindPoint(x, y, pheight, pnormal);
+        bool phit = patch->FindPoint(loc, pheight, pnormal);
         if (phit && pheight > height) {
             hit = true;
             height = pheight;
@@ -606,31 +558,29 @@ bool RigidTerrain::FindPoint(double x, double y, double& height, ChVector<>& nor
     return hit;
 }
 
-bool RigidTerrain::BoxPatch::FindPoint(double x, double y, double& height, ChVector<>& normal) const {
+bool RigidTerrain::BoxPatch::FindPoint(const ChVector<>& loc, double& height, ChVector<>& normal) const {
     // Ray definition (in global frame)
-    ChVector<> A(x, y, m_body->GetPos().z() + m_radius + 1000);  // start point
-    ChVector<> v(0, 0, -1);                                      // direction (negative global z)
+    ChVector<> A = loc + (m_radius + 1000) * ChWorldFrame::Vertical();  // start point
+    ChVector<> v = -ChWorldFrame::Vertical();                           // direction (downward)
 
-    // Box +z plane (in global frame)
-    ChVector<> B = m_body->TransformPointLocalToParent(ChVector<>(0, 0, m_hsize.z()));  // center of +z face
-    normal = m_normal;                                                                  // outward normal of the +z face
-
-    // Intersect ray with plane
-    double t = Vdot(B - A, normal) / Vdot(v, normal);
+    // Intersect ray with top plane
+    double t = Vdot(m_location - A, m_normal) / Vdot(v, m_normal);
     ChVector<> C = A + t * v;
-    height = C.z();
+    height = ChWorldFrame::Height(C);
+    normal = m_normal;
 
     // Check bounds
     ChVector<> Cl = m_body->TransformPointParentToLocal(C);
-    return std::abs(Cl.x()) <= m_hsize.x() && std::abs(Cl.y()) <= m_hsize.y();
+    return std::abs(Cl.x()) <= m_hlength && std::abs(Cl.y()) <= m_hwidth;
 }
 
-bool RigidTerrain::MeshPatch::FindPoint(double x, double y, double& height, ChVector<>& normal) const {
+bool RigidTerrain::MeshPatch::FindPoint(const ChVector<>& loc, double& height, ChVector<>& normal) const {
+    ChVector<> from = loc + (m_radius + 1000) * ChWorldFrame::Vertical();
+    ChVector<> to = loc - (m_radius + 1000) * ChWorldFrame::Vertical();
+
     collision::ChCollisionSystem::ChRayhitResult result;
-    m_body->GetSystem()->GetCollisionSystem()->RayHit(ChVector<>(x, y, m_body->GetPos().z() + m_radius + 1000),
-                                                      ChVector<>(x, y, m_body->GetPos().z() - m_radius - 1000),
-                                                      m_body->GetCollisionModel().get(), result);
-    height = result.abs_hitPoint.z();
+    m_body->GetSystem()->GetCollisionSystem()->RayHit(from, to, m_body->GetCollisionModel().get(), result);
+    height = ChWorldFrame::Height(result.abs_hitPoint);
     normal = result.abs_hitNormal;
 
     return result.hit;
