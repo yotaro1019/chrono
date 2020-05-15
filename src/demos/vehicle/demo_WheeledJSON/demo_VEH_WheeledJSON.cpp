@@ -49,7 +49,7 @@
 #include "chrono_vehicle/driver/ChIrrGuiDriver.h"
 #include "chrono_vehicle/wheeled_vehicle/utils/ChWheeledVehicleIrrApp.h"
 // specify whether the demo should actually use Irrlicht
-#define USE_IRRLICHT
+#define dontUSE_IRRLICHT
 #endif
 
 using namespace chrono;

@@ -113,7 +113,7 @@ const std::string out_dir = GetChronoOutputPath() + "STEERING_CONTROLLER";
 const std::string pov_dir = out_dir + "/POVRAY";
 
 // POV-Ray output
-bool povray_output = false;
+bool povray_output = true;
 
 // Vehicle state output (forced to true if povray output enabled)
 bool state_output = false;
