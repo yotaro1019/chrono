@@ -180,7 +180,7 @@ void SCMDeformableTerrain::AddMovingPatch(std::shared_ptr<ChBody> body,
 }
 
 // Set user-supplied callback for evaluating location-dependent soil parameters
-void SCMDeformableTerrain::RegisterSoilParametersCallback(SoilParametersCallback* cb) {
+void SCMDeformableTerrain::RegisterSoilParametersCallback(std::shared_ptr<SoilParametersCallback> cb) {
     m_ground->m_soil_fun = cb;
 }
 
@@ -1231,8 +1231,8 @@ void SCMDeformableSoil::ComputeInternalForces() {
     // Calculate normals and then average the normals from all adjacent faces.
     for (unsigned int it = 0; it < idx_vertices.size(); ++it) {
         // Calculate the triangle normal as a normalized cross product.
-        ChVector<> nrm = -Vcross(vertices[idx_vertices[it][1]] - vertices[idx_vertices[it][0]],
-                                 vertices[idx_vertices[it][2]] - vertices[idx_vertices[it][0]]);
+        ChVector<> nrm = Vcross(vertices[idx_vertices[it][1]] - vertices[idx_vertices[it][0]],
+                                vertices[idx_vertices[it][2]] - vertices[idx_vertices[it][0]]);
         nrm.Normalize();
         // Increment the normals of all incident vertices by the face normal
         normals[idx_normals[it][0]] += nrm;

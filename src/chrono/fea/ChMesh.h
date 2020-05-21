@@ -28,6 +28,8 @@
 
 namespace chrono {
 
+class ChAssembly;
+
 namespace fea {
 
 /// @addtogroup chrono_fea
@@ -278,6 +280,7 @@ class ChApi ChMesh : public ChIndexedNodes {
     virtual void SetupInitial() override;
 
     friend class chrono::ChSystem;
+    friend class chrono::ChAssembly;
 };
 
 /// @} chrono_fea
