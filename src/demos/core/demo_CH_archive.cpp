@@ -27,6 +27,8 @@
 #include "chrono/serialization/ChArchiveXML.h"
 #include "chrono/serialization/ChArchiveExplorer.h"
 
+#include <ChArchive.h>
+
 #include "chrono/core/ChGlobal.h"
 
 #include "chrono/core/ChLog.h"
