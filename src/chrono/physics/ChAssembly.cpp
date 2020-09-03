@@ -1221,37 +1221,52 @@ void ChAssembly::ArchiveOUT(ChArchiveOut& marchive) {
 void ChAssembly::ArchiveIN(ChArchiveIn& marchive) {
     // version number
     int version = marchive.VersionRead<ChAssembly>();
-
+    GetLog() << "ChAssembly version = " << version << "\n";
     // deserialize parent class
     ChPhysicsItem::ArchiveIN(marchive);
-
+    GetLog() << "ChAssembly ChPhysicsItem completed\n";
     // stream in all member data:
     std::vector<std::shared_ptr<ChBody>> tempbodies;
     std::vector<std::shared_ptr<ChLinkBase>> templinks;
     std::vector<std::shared_ptr<ChMesh>> tempmeshes;
     std::vector<std::shared_ptr<ChPhysicsItem>> tempitems;
+    GetLog() << "ChAssembly 1\n";
     marchive >> CHNVP(tempbodies, "bodies");
+    GetLog() << "ChAssembly 2\n";
     marchive >> CHNVP(templinks, "links");
+    GetLog() << "ChAssembly 3\n";
     marchive >> CHNVP(tempmeshes, "meshes");
+    GetLog() << "ChAssembly 4\n";
     marchive >> CHNVP(tempitems, "other_physics_items");
     // trick needed because the "Add...()" functions are required
+    GetLog() << "ChAssembly RemoveAllBodies\n";
     RemoveAllBodies();
+    GetLog() << "ChAssembly !!\n";
     for (auto& body : tempbodies) {
         AddBody(body);
     }
+    GetLog() << "complete bodies\n";
+
     RemoveAllLinks();
+    GetLog() << "ChAssembly !!\n";
     for (auto& link : templinks) {
         AddLink(link);
     }
+    GetLog() << "complete Link\n";
+
     RemoveAllMeshes();
+    GetLog() << "ChAssembly !!\n";
     for (auto& mesh : tempmeshes) {
         AddMesh(mesh);
     }
+    GetLog() << "complete Mesh\n";
+
     RemoveAllOtherPhysicsItems();
+    GetLog() << "ChAssembly !!\n";
     for (auto& item : tempitems) {
         AddOtherPhysicsItem(item);
     }
-
+    GetLog() << "complete OtherPhysicsItem\n";
     // Recompute statistics, offsets, etc.
     Setup();
 }

@@ -73,7 +73,7 @@ void ChSystemNSC::ArchiveOUT(ChArchiveOut& marchive) {
 void ChSystemNSC::ArchiveIN(ChArchiveIn& marchive) {
     // version number
     int version = marchive.VersionRead<ChSystemNSC>();
-
+    GetLog() << "ChSystemNSC version = " << version << "\n";
     // deserialize parent class
     ChSystem::ArchiveIN(marchive);
 

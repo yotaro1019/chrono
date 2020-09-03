@@ -1856,10 +1856,10 @@ void ChSystem::ArchiveOUT(ChArchiveOut& marchive) {
 void ChSystem::ArchiveIN(ChArchiveIn& marchive) {
     // version number
     int version = marchive.VersionRead<ChSystem>();
-
+    GetLog() << "ChSystem version = " << version << "\n";
     // deserialize unerlying assembly
     assembly.ArchiveIN(marchive);
-
+    GetLog() << "ChSystem complete deserialize assembly\n";
     // stream in all member data:
 
     marchive >> CHNVP(contact_container);

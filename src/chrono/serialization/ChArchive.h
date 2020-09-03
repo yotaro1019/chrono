@@ -202,28 +202,55 @@ private:
             return false;
         }
 
+#if 0    // PAUMOD  // std::is_default_constructible<Tc> was not working properly, at least, with CHFunction inheritors
         template <class Tc=TClass>
         typename enable_if< std::is_default_constructible<Tc>::value && !std::is_abstract<Tc>::value, void >::type
         _constructor(ChArchiveIn& marchive, const char* classname) {
+            std::string clname = typeid(Tc).name(); // PAUMOD DEBUG
             if (ChClassFactory::IsClassRegistered(std::string(classname)))
                 ChClassFactory::create(std::string(classname), pt2Object);
             else
                 *pt2Object = new(TClass);
         }
+
         template <class Tc=TClass>
         typename enable_if< std::is_default_constructible<Tc>::value && std::is_abstract<Tc>::value, void >::type
         _constructor(ChArchiveIn& marchive, const char* classname) {
+            std::string clname = typeid(Tc).name(); // PAUMOD DEBUG
             if (ChClassFactory::IsClassRegistered(std::string(classname)))
                 ChClassFactory::create(std::string(classname), pt2Object);
             else
                 throw (ChExceptionArchive( "Cannot call CallConstructor(). Class not registered, and base is an abstract class."));
         }
+
         template <class Tc=TClass>
         typename enable_if< !std::is_default_constructible<Tc>::value, void >::type
         _constructor(ChArchiveIn& marchive, const char* classname) {
+            std::string clname = typeid(Tc).name(); // PAUMOD DEBUG
             throw (ChExceptionArchive( "Cannot call CallConstructor() for an object without default constructor.")); 
         }
+#else
+    template <class Tc = TClass>
+    typename enable_if<!std::is_abstract<Tc>::value, void>::type
+    _constructor(ChArchiveIn& marchive, const char* classname) {
+        std::string clname = typeid(Tc).name(); // PAUMOD DEBUG
+        if (ChClassFactory::IsClassRegistered(std::string(classname)))
+            ChClassFactory::create(std::string(classname), pt2Object);
+        else
+            *pt2Object = new (TClass);
+    }
 
+    template <class Tc = TClass>
+    typename enable_if<std::is_abstract<Tc>::value, void>::type
+    _constructor(ChArchiveIn& marchive, const char* classname) {
+        std::string clname = typeid(Tc).name(); // PAUMOD DEBUG
+        if (ChClassFactory::IsClassRegistered(std::string(classname)))
+            ChClassFactory::create(std::string(classname), pt2Object);
+        else
+            throw(ChExceptionArchive(
+                "Cannot call CallConstructor(). Class not registered, and base is an abstract class."));
+    }
+#endif
         private:
         template <class Tc=TClass>
         typename enable_if< ChDetect_ArchiveIN<Tc>::value, void >::type
