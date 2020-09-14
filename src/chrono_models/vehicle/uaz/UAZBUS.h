@@ -54,6 +54,7 @@ class CH_MODELS_API UAZBUS {
     void SetChassisFixed(bool val) { m_fixed = val; }
     void SetChassisCollisionType(ChassisCollisionType val) { m_chassisCollisionType = val; }
 
+    void SetBrakeType(BrakeType brake_type) { m_brake_type = brake_type; }
     void SetTireType(TireModelType val) { m_tireType = val; }
 
     // void setSteeringType(SteeringType val) { m_steeringType = val; }
@@ -63,6 +64,8 @@ class CH_MODELS_API UAZBUS {
     void SetInitWheelAngVel(const std::vector<double>& omega) { m_initOmega = omega; }
 
     void SetTireStepSize(double step_size) { m_tire_step_size = step_size; }
+
+    void EnableBrakeLocking(bool lock) { m_brake_locking = lock; }
 
     ChSystem* GetSystem() const { return m_vehicle->GetSystem(); }
     ChWheeledVehicle& GetVehicle() const { return *m_vehicle; }
@@ -94,7 +97,9 @@ class CH_MODELS_API UAZBUS {
     ChContactMethod m_contactMethod;
     ChassisCollisionType m_chassisCollisionType;
     bool m_fixed;
+    bool m_brake_locking;
 
+    BrakeType m_brake_type;
     TireModelType m_tireType;
 
     double m_tire_step_size;

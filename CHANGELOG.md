@@ -2,6 +2,8 @@ Change Log
 ==========
 
 - [Unreleased (development version)](#unreleased-development-branch)
+    - [Constitutive models for beams](#constitutive-models-for-beams)
+	- [Applied forces](#added-applied-forces)
     - [Chrono::Vehicle simulation world frame](#added-chronovehicle-simulation-world-frame)
     - [CASCADE module](#changed-cascade-module)
 	- [Collision shapes and contact materials](#changed-collision-shapes-and-contact-materials)
@@ -13,13 +15,63 @@ Change Log
 
 ## Unreleased (development branch)
 
+
+### [Changed] Constitutive models for EULER beams
+
+Section properties of the ChElementBeamEuler are now defined via a **new class** `ChBeamSectionEuler` and subclasses. Old classes for Euler sections have been renamed and rewritten, the old classes have been **deprecated** and will be removed in future:
+ - `ChBeamSectionBasic`, use  `ChBeamSectionEulerSimple` instead
+ - `ChBeamSectionAdvanced`, use  `ChBeamSectionEulerAdvanced` instead
+ 
+Note that in the previous release, the Sy and Sz values for **shear center** offset in `ChBeamSectionAdvanced` were assumed with **opposite sign** respect to the description and illustrative figure: now this bug is fixed, and shear center offset works the same as in Cosserat beams.
+
+Also, a new class  `ChBeamSectionEulerGeneric` has been added, that does not make the assumption of uniform density and uniform elasticity, so it accepts directly the beam rigidity values bypassing the E and Izz Iyy values. 
+ 
+To speedup coding in case of simple beams, two new classes `ChBeamSectionEulerEasyRectangular` and `ChBeamSectionEulerEasyCircular` have been added.
+
+
+
+### [Changed] Constitutive models for IGA beams
+
+Inertial properties of Cosserat beams, such as the ChElementBeamIGA, are now defined via a **new class** `ChInertiaCosserat` and subclasses, that can be composed into `ChBeamSectionCosserat` just like we do for elastic properties, damping, etc. This is more flexible than before. Therefore these functions have been **removed**:
+ - `ChBeamSectionCosserat::SetDensity()`
+ - `ChBeamSectionCosserat::SetArea()`
+
+**Consequences:**
+ - the ChBeamSectionCosserat constructor has changed: it always requires a ChInertiaCosserat too.
+ - you should create a ChInertiaCosserat, like ChInertiaCosseratUniformDensity, set density and area there, and add the ChInertiaCosserat to the ChBeamSectionCosserat.
+ - the polar part of inertia was using the width-height values of the visualization, that was limiting and often not related to the beam; now it is a physical value
+  - the rotational inertia (in lumped mass matrix) of the beam is more precise
+
+Moreover, also because of this modification, and in order to make the API less ambiguous, these functions have been **removed**:
+ - `SetAsCircularSection()`
+ - `SetAsRectangularSection()`
+from the ChBeamSectionCosserat *and* from all elastic/damping/plastic models. We kept them only for the elastic models where they make sense. 
+
+**Consequences:** 
+ - previously one could call `ChBeamSectionCosserat::SetAsRectangularSection()` and automatically invoke the same for all sub-models (elasticity, etc.) whereas now one has to call `SetAsRectangularSection()` for the single sub-models, only when needed and when available. 
+ - To make things easier, we provide the new classes `ChBeamSectionCosseratEasyRectangular`
+and `ChBeamSectionCosseratEasyCircular` that in a single shot create elastic and inertia models, sets them as rectangular or circular, and sets the visualization type.
+
+
+
+### [Added] Applied forces
+
+The new functions `ChBody::GetAppliedForce` and `ChBody::GetAppliedTorque` return the body resultant applied force and torque, respectively.
+
+1. These functions include contributions from all external applied loads acting on a body (e.g., gravitational forces, forces defined through ChForce elements, forces specified through ChLoad, springs, dampers, etc).
+   However, they **do not** include any constraint forces.  In particular, this means that contact forces are not included when using the NSC formulation, but are included when using the SMC formulation.
+   For the former case, use `ChBody::GetContactForce` and `ChBody::GetContactTorque` to obtain the resultant contact force and torque, respectively.
+   
+2. Note that reporting this information requires a traversal of the entire system and caching the generalized forces, a quantity that is otherwise not computed in the form required for this reporting.  To prevent any additional overhead when this information is not requested by the user, this is done using lazy evaluation.   In other words, no overhead is incurred at a simulation step if no applied forces are requested. On the other hand, there is a small (but non-zero) cost when a call to `ChBody::GetAppliedForce` or `ChBody::GetAppliedTorque` is made; however, this cost is constant at any given time, regardless of how many queries are made.  Note also that this additional cost is not incurred for Chrono::Parallel.
+
+
 ### [Added] Chrono::Vehicle simulation world frame
 
 While the default world frame for Chrono::Vehicle simulations is an ISO (Z up) frame, we now provide support to simulate vehicles in a scene specified in a different reference frame (for example, an Y up frame).
 The world frame is uniquely defined through a rotation matrix (the rotation required to align the ISO frame with the desired world frame). To change the world frame definition from the default ISO convention, the desired world frame must be set **before** any Chrono::Vehicle library call:
 ```cpp
 ChMatrix33<> world_rotation = ...
-ChWorldFrame::Set(worl_rotation);
+ChWorldFrame::Set(world_rotation);
 ```
 A shortcut is provided to specify a world frame with Y up (and X forward, Z to the right):
 ```cpp

@@ -31,7 +31,7 @@ namespace vehicle {
 
 // -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
-ChSprocket::ChSprocket(const std::string& name) : ChPart(name) {}
+ChSprocket::ChSprocket(const std::string& name) : ChPart(name), m_lateral_contact(true) {}
 
 ChSprocket::~ChSprocket() {}
 
@@ -50,6 +50,7 @@ void ChSprocket::Initialize(std::shared_ptr<ChBodyAuxRef> chassis, const ChVecto
     // Create and initialize the gear body (same orientation as the chassis).
     m_gear = std::shared_ptr<ChBody>(chassis->GetSystem()->NewBody());
     m_gear->SetNameString(m_name + "_gear");
+    m_gear->SetIdentifier(BodyID::SPROCKET_BODY);
     m_gear->SetPos(loc);
     m_gear->SetRot(chassisRot);
     m_gear->SetMass(GetGearMass());

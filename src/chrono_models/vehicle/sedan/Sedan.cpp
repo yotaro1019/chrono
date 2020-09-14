@@ -34,6 +34,8 @@ Sedan::Sedan()
       m_contactMethod(ChContactMethod::NSC),
       m_chassisCollisionType(ChassisCollisionType::NONE),
       m_fixed(false),
+      m_brake_locking(false),
+      m_brake_type(BrakeType::SIMPLE),
       m_tireType(TireModelType::RIGID),
       m_tire_step_size(-1),
       m_initFwdVel(0),
@@ -47,6 +49,8 @@ Sedan::Sedan(ChSystem* system)
       m_contactMethod(ChContactMethod::NSC),
       m_chassisCollisionType(ChassisCollisionType::NONE),
       m_fixed(false),
+      m_brake_locking(false),
+      m_brake_type(BrakeType::SIMPLE),
       m_tireType(TireModelType::RIGID),
       m_tire_step_size(-1),
       m_initFwdVel(0),
@@ -70,8 +74,8 @@ void Sedan::SetAerodynamicDrag(double Cd, double area, double air_density) {
 // -----------------------------------------------------------------------------
 void Sedan::Initialize() {
     // Create and initialize the Sedan vehicle
-    m_vehicle = m_system ? new Sedan_Vehicle(m_system, m_fixed, m_chassisCollisionType)
-                         : new Sedan_Vehicle(m_fixed, m_contactMethod, m_chassisCollisionType);
+    m_vehicle = m_system ? new Sedan_Vehicle(m_system, m_fixed, m_brake_type, m_chassisCollisionType)
+                         : new Sedan_Vehicle(m_fixed, m_brake_type, m_contactMethod, m_chassisCollisionType);
 
     m_vehicle->SetInitWheelAngVel(m_initOmega);
     m_vehicle->Initialize(m_initPos, m_initFwdVel);
@@ -148,6 +152,8 @@ void Sedan::Initialize() {
                 wheel->GetTire()->SetStepsize(m_tire_step_size);
         }
     }
+
+    m_vehicle->EnableBrakeLocking(m_brake_locking);
 }
 
 // -----------------------------------------------------------------------------

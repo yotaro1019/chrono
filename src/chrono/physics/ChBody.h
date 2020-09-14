@@ -273,7 +273,7 @@ class ChApi ChBody : public ChPhysicsItem, public ChBodyFrame, public ChContacta
     /// The provided 3x3 matrix should be symmetric and contain the inertia tensor, expressed in the local coordinate
     /// system: 
     /// <pre>
-    ///               [ int{x^2+z^2}dm    -int{xy}dm    -int{xz}dm    ]
+    ///               [ int{y^2+z^2}dm    -int{xy}dm    -int{xz}dm    ]
     /// newXInertia = [                  int{x^2+z^2}   -int{yz}dm    ]
     ///               [                                int{x^2+y^2}dm ]
     /// </pre>
@@ -282,7 +282,7 @@ class ChApi ChBody : public ChPhysicsItem, public ChBodyFrame, public ChContacta
     /// Get the inertia tensor, expressed in the local coordinate system.
     /// The return 3x3 symmetric matrix contains the following values:
     /// <pre>
-    ///  [ int{x^2+z^2}dm    -int{xy}dm    -int{xz}dm    ]
+    ///  [ int{y^2+z^2}dm    -int{xy}dm    -int{xz}dm    ]
     ///  [                  int{x^2+z^2}   -int{yz}dm    ]
     ///  [                                int{x^2+y^2}dm ]
     /// </pre>
@@ -294,14 +294,14 @@ class ChApi ChBody : public ChPhysicsItem, public ChBodyFrame, public ChContacta
     /// Set the diagonal part of the inertia tensor (Ixx, Iyy, Izz values).
     /// The provided 3x1 vector should contain the moments of inertia, expressed in the local coordinate frame:
     /// <pre>
-    /// iner = [  int{x^2+z^2}dm   int{x^2+z^2}   int{x^2+y^2}dm ]
+    /// iner = [  int{y^2+z^2}dm   int{x^2+z^2}   int{x^2+y^2}dm ]
     /// </pre>
     void SetInertiaXX(const ChVector<>& iner);
 
     /// Get the diagonal part of the inertia tensor (Ixx, Iyy, Izz values).
     /// The return 3x1 vector contains the following values:
     /// <pre>
-    /// [  int{x^2+z^2}dm   int{x^2+z^2}   int{x^2+y^2}dm ]
+    /// [  int{y^2+z^2}dm   int{x^2+z^2}   int{x^2+y^2}dm ]
     /// </pre>
     ChVector<> GetInertiaXX() const;
 
@@ -392,17 +392,6 @@ class ChApi ChBody : public ChPhysicsItem, public ChBodyFrame, public ChContacta
     /// Note that this is a resultant torque expressed in the body local frame.
     const ChVector<>& Get_accumulated_torque() const { return Torque_acc; }
 
-    /// Return the gyroscopic torque.
-    const ChVector<>& Get_gyro() const { return gyro; }
-
-    /// Get the total force applied to the rigid body.
-    /// Note that this is a resultant force as applied to the COM and expressed in the absolute frame.
-    const ChVector<>& Get_Xforce() const { return Xforce; }
-
-    /// Get the total torque applied to the rigid body.
-    /// Note that this is a resultant torque (excluding the gyroscopic torque) expressed in the body local frame.
-    const ChVector<>& Get_Xtorque() const { return Xtorque; }
-
     // UPDATE FUNCTIONS
 
     /// Update all children markers of the rigid body, at current body state
@@ -418,6 +407,18 @@ class ChApi ChBody : public ChPhysicsItem, public ChBodyFrame, public ChContacta
     /// Update all auxiliary data of the rigid body and of
     /// its children (markers, forces..)
     virtual void Update(bool update_assets = true) override;
+
+    /// Return the resultant applied force on the body.
+    /// This resultant force includes all external applied loads acting on this body (from gravity, loads, springs,
+    /// etc). However, this does *not* include any constraint forces. In particular, contact forces are not included if
+    /// using the NSC formulation, but are included when using the SMC formulation.
+    ChVector<> GetAppliedForce();
+
+    /// Return the resultant applied torque on the body.
+    /// This resultant torque includes all external applied loads acting on this body (from gravity, loads, springs,
+    /// etc). However, this does *not* include any constraint forces. In particular, contact torques are not included if
+    /// using the NSC formulation, but are included when using the SMC formulation.
+    ChVector<> GetAppliedTorque();
 
     /// Get the resultant contact force acting on this body.
     ChVector<> GetContactForce();
@@ -515,7 +516,8 @@ class ChApi ChBody : public ChPhysicsItem, public ChBodyFrame, public ChContacta
                                  const ChState& x,
                                  const unsigned int off_v,
                                  const ChStateDelta& v,
-                                 const double T) override;
+                                 const double T,
+                                 bool full_update) override;
     virtual void IntStateGatherAcceleration(const unsigned int off_a, ChStateDelta& a) override;
     virtual void IntStateScatterAcceleration(const unsigned int off_a, const ChStateDelta& a) override;
     virtual void IntStateIncrement(const unsigned int off_x,

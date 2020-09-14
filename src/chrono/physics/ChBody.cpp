@@ -99,7 +99,7 @@ ChBody::ChBody(const ChBody& other) : ChPhysicsItem(other), ChBodyFrame(other) {
     variables = other.variables;
     variables.SetUserData((void*)this);
 
-    gyro = other.Get_gyro();
+    gyro = other.gyro;
 
     RemoveAllForces();   // also copy-duplicate the forces? Let the user handle this..
     RemoveAllMarkers();  // also copy-duplicate the markers? Let the user handle this..
@@ -150,13 +150,14 @@ void ChBody::IntStateScatter(const unsigned int off_x,  // offset in x state vec
                              const ChState& x,          // state vector, position part
                              const unsigned int off_v,  // offset in v state vector
                              const ChStateDelta& v,     // state vector, speed part
-                             const double T             // time
+                             const double T,            // time
+                             bool full_update           // perform complete update
 ) {
     this->SetCoord(x.segment(off_x, 7));
     this->SetPos_dt(v.segment(off_v + 0, 3));
     this->SetWvel_loc(v.segment(off_v + 3, 3));
     this->SetChTime(T);
-    this->Update(T);
+    this->Update(T, full_update);
 }
 
 void ChBody::IntStateGatherAcceleration(const unsigned int off_a, ChStateDelta& a) {
@@ -962,6 +963,14 @@ void ChBody::ComputeJacobianForRollingContactPart(
     jacobian_tuple_V.Get_Cq().segment(3, 3) = Jr1.row(2);
 }
 
+ChVector<> ChBody::GetAppliedForce() {
+    return GetSystem()->GetBodyAppliedForce(this);
+}
+
+ChVector<> ChBody::GetAppliedTorque() {
+    return GetSystem()->GetBodyAppliedTorque(this);
+}
+
 ChVector<> ChBody::GetContactForce() {
     return GetSystem()->GetContactContainer()->GetContactableForce(this);
 }
@@ -1062,8 +1071,6 @@ void ChBody::ArchiveOUT(ChArchiveOut& marchive) {
     marchive << CHNVP(Xtorque);
     // marchive << CHNVP(Force_acc); // not useful in serialization
     // marchive << CHNVP(Torque_acc);// not useful in serialization
-    // marchive << CHNVP(Scr_force); // not useful in serialization
-    // marchive << CHNVP(Scr_torque);// not useful in serialization
     marchive << CHNVP(density);
     marchive << CHNVP(variables);
     marchive << CHNVP(max_speed);
@@ -1123,8 +1130,6 @@ void ChBody::ArchiveIN(ChArchiveIn& marchive) {
     marchive >> CHNVP(Xtorque);
     // marchive << CHNVP(Force_acc); // not useful in serialization
     // marchive << CHNVP(Torque_acc);// not useful in serialization
-    // marchive << CHNVP(Scr_force); // not useful in serialization
-    // marchive << CHNVP(Scr_torque);// not useful in serialization
     marchive >> CHNVP(density);
     marchive >> CHNVP(variables);
     marchive >> CHNVP(max_speed);

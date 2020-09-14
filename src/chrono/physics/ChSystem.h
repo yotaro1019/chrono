@@ -414,13 +414,15 @@ class ChApi ChSystem : public ChIntegrableIIorder {
     virtual double GetTimerAdvance() const { return timer_advance(); }
     /// Return the time (in seconds) for the solver, within the time step.
     /// Note that this time excludes any calls to the solver's Setup function.
-    virtual double GetTimerSolver() const { return timer_solver(); }
+    virtual double GetTimerLSsolve() const { return timer_ls_solve(); }
     /// Return the time (in seconds) for the solver Setup phase, within the time step.
-    virtual double GetTimerSetup() const { return timer_setup(); }
+    virtual double GetTimerLSsetup() const { return timer_ls_setup(); }
     /// Return the time (in seconds) for calculating/loading Jacobian information, within the time step.
     virtual double GetTimerJacobian() const { return timer_jacobian(); }
     /// Return the time (in seconds) for runnning the collision detection step, within the time step.
     virtual double GetTimerCollision() const { return timer_collision(); }
+    /// Return the time (in seconds) for system setup, within the time step.
+    virtual double GetTimerSetup() const { return timer_setup(); }
     /// Return the time (in seconds) for updating auxiliary data, within the time step.
     virtual double GetTimerUpdate() const { return timer_update(); }
 
@@ -433,10 +435,11 @@ class ChApi ChSystem : public ChIntegrableIIorder {
     void ResetTimers() {
         timer_step.reset();
         timer_advance.reset();
-        timer_solver.reset();
-        timer_setup.reset();
+        timer_ls_solve.reset();
+        timer_ls_setup.reset();
         timer_jacobian.reset();
         timer_collision.reset();
+        timer_setup.reset();
         timer_update.reset();
         collision_system->ResetTimers();
     }
@@ -451,6 +454,18 @@ class ChApi ChSystem : public ChIntegrableIIorder {
     /// Initial system setup before analysis.
     /// This function performs an initial system setup, once system construction is completed and before an analysis.
     void SetupInitial();
+
+    /// Return the resultant applied force on the specified body.
+    /// This resultant force includes all external applied loads acting on the body (from gravity, loads, springs,
+    /// etc). However, this does *not* include any constraint forces. In particular, contact forces are not included if
+    /// using the NSC formulation, but are included when using the SMC formulation.
+    virtual ChVector<> GetBodyAppliedForce(ChBody* body);
+
+    /// Return the resultant applied torque on the specified body.
+    /// This resultant torque includes all external applied loads acting on the body (from gravity, loads, springs,
+    /// etc). However, this does *not* include any constraint forces. In particular, contact torques are not included if
+    /// using the NSC formulation, but are included when using the SMC formulation.
+    virtual ChVector<> GetBodyAppliedTorque(ChBody* body);
 
   public:
     /// Counts the number of bodies and links.
@@ -472,35 +487,6 @@ class ChApi ChSystem : public ChIntegrableIIorder {
     /// call.
     void ForceUpdate();
 
-    // Overload interfaces for global state vectors, see ChPhysicsItem for comments.
-    // The following must be overloaded because there may be ChContactContainer objects in addition to base ChAssembly.
-    void IntStateGather(const unsigned int off_x, ChState& x, const unsigned int off_v, ChStateDelta& v, double& T);
-    void IntStateScatter(const unsigned int off_x,
-                         const ChState& x,
-                         const unsigned int off_v,
-                         const ChStateDelta& v,
-                         const double T);
-    void IntStateGatherAcceleration(const unsigned int off_a, ChStateDelta& a);
-    void IntStateScatterAcceleration(const unsigned int off_a, const ChStateDelta& a);
-    void IntStateGatherReactions(const unsigned int off_L, ChVectorDynamic<>& L);
-    void IntStateScatterReactions(const unsigned int off_L, const ChVectorDynamic<>& L);
-    void IntStateIncrement(const unsigned int off_x,
-                           ChState& x_new,
-                           const ChState& x,
-                           const unsigned int off_v,
-                           const ChStateDelta& Dv);
-    void IntLoadResidual_F(const unsigned int off, ChVectorDynamic<>& R, const double c);
-    void IntLoadResidual_Mv(const unsigned int off, ChVectorDynamic<>& R, const ChVectorDynamic<>& w, const double c);
-    void IntLoadResidual_CqL(const unsigned int off_L,
-                             ChVectorDynamic<>& R,
-                             const ChVectorDynamic<>& L,
-                             const double c);
-    void IntLoadConstraint_C(const unsigned int off,
-                             ChVectorDynamic<>& Qc,
-                             const double c,
-                             bool do_clamp,
-                             double recovery_clamp);
-    void IntLoadConstraint_Ct(const unsigned int off, ChVectorDynamic<>& Qc, const double c);
     void IntToDescriptor(const unsigned int off_v,
                          const ChStateDelta& v,
                          const ChVectorDynamic<>& R,
@@ -547,8 +533,11 @@ class ChApi ChSystem : public ChIntegrableIIorder {
     /// From system to state y={x,v}
     virtual void StateGather(ChState& x, ChStateDelta& v, double& T) override;
 
-    /// From state Y={x,v} to system.
-    virtual void StateScatter(const ChState& x, const ChStateDelta& v, const double T) override;
+    /// From state Y={x,v} to system. This also triggers an update operation.
+    virtual void StateScatter(const ChState& x,
+                              const ChStateDelta& v,
+                              const double T,
+                              bool full_update) override;
 
     /// From system to state derivative (acceleration), some timesteppers might need last computed accel.
     virtual void StateGatherAcceleration(ChStateDelta& a) override;
@@ -585,18 +574,19 @@ class ChApi ChSystem : public ChIntegrableIIorder {
     /// for residual R and  G = [ c_a*M + c_v*dF/dv + c_x*dF/dx ].\n
     /// This function returns true if successful and false otherwise.
     virtual bool StateSolveCorrection(
-        ChStateDelta& Dv,                 ///< result: computed Dv
-        ChVectorDynamic<>& L,             ///< result: computed lagrangian multipliers, if any
-        const ChVectorDynamic<>& R,       ///< the R residual
-        const ChVectorDynamic<>& Qc,      ///< the Qc residual
-        const double c_a,                 ///< the factor in c_a*M
-        const double c_v,                 ///< the factor in c_v*dF/dv
-        const double c_x,                 ///< the factor in c_x*dF/dv
-        const ChState& x,                 ///< current state, x part
-        const ChStateDelta& v,            ///< current state, v part
-        const double T,                   ///< current time T
-        bool force_state_scatter = true,  ///< if false, x,v and T are not scattered to the system
-        bool force_setup = true           ///< if true, call the solver's Setup() function
+        ChStateDelta& Dv,             ///< result: computed Dv
+        ChVectorDynamic<>& L,         ///< result: computed lagrangian multipliers, if any
+        const ChVectorDynamic<>& R,   ///< the R residual
+        const ChVectorDynamic<>& Qc,  ///< the Qc residual
+        const double c_a,             ///< the factor in c_a*M
+        const double c_v,             ///< the factor in c_v*dF/dv
+        const double c_x,             ///< the factor in c_x*dF/dv
+        const ChState& x,             ///< current state, x part
+        const ChStateDelta& v,        ///< current state, v part
+        const double T,               ///< current time T
+        bool force_state_scatter,     ///< if false, x and v are not scattered to the system
+        bool full_update,             ///< if true, perform a full update during scatter
+        bool force_setup              ///< if true, call the solver's Setup() function
         ) override;
 
     /// Increment a vector R with the term c*F:
@@ -624,7 +614,7 @@ class ChApi ChSystem : public ChIntegrableIIorder {
     virtual void LoadConstraint_C(ChVectorDynamic<>& Qc,        ///< result: the Qc residual, Qc += c*C
                                   const double c,               ///< a scaling factor
                                   const bool do_clamp = false,  ///< enable optional clamping of Qc
-                                  const double mclam = 1e30     ///< clamping value
+                                  const double clamp = 1e30     ///< clamping value
                                   ) override;
 
     /// Increment a vector Qc with the term Ct = partial derivative dC/dt:
@@ -912,15 +902,19 @@ class ChApi ChSystem : public ChIntegrableIIorder {
     // timers for profiling execution speed
     ChTimer<double> timer_step;       ///< timer for integration step
     ChTimer<double> timer_advance;    ///< timer for time integration
-    ChTimer<double> timer_solver;     ///< timer for solver (excluding setup phase)
-    ChTimer<double> timer_setup;      ///< timer for solver setup
+    ChTimer<double> timer_ls_solve;   ///< timer for solver (excluding setup phase)
+    ChTimer<double> timer_ls_setup;   ///< timer for solver setup
     ChTimer<double> timer_jacobian;   ///< timer for computing/loading Jacobian information
     ChTimer<double> timer_collision;  ///< timer for collision detection
+    ChTimer<double> timer_setup;      ///< timer for system setup
     ChTimer<double> timer_update;     ///< timer for system update
 
     std::shared_ptr<ChTimestepper> timestepper;  ///< time-stepper object
 
     bool last_err;  ///< indicates error over the last kinematic/dynamics/statics
+
+    ChVectorDynamic<> applied_forces;  ///< system-wide vector of applied forces (lazy evaluation)
+    bool applied_forces_current;       ///< indicates if system-wide vector of forces is up-to-date
 
     // Friend class declarations
 

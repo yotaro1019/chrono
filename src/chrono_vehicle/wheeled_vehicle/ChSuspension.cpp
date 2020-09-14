@@ -24,7 +24,7 @@
 namespace chrono {
 namespace vehicle {
 
-ChSuspension::ChSuspension(const std::string& name) : ChPart(name), m_steering_index(-1) {}
+ChSuspension::ChSuspension(const std::string& name) : ChPart(name) {}
 
 ChQuaternion<> ChSuspension::GetSpindleRot(VehicleSide side) const {
     return m_spindle[side]->GetRot() * ChWorldFrame::Quaternion();
@@ -72,6 +72,11 @@ void ChSuspension::AddVisualizationSpindle(VehicleSide side, double radius, doub
     m_spindle_shapes[side]->GetCylinderGeometry().p2 = ChVector<>(0, -width / 2, 0);
     m_spindle_shapes[side]->GetCylinderGeometry().rad = radius;
     m_spindle[side]->AddAsset(m_spindle_shapes[side]);
+}
+
+void ChSuspension::ApplyParkingBrake(bool brake) {
+    m_revolute[0]->Lock(brake);
+    m_revolute[1]->Lock(brake);
 }
 
 }  // end namespace vehicle

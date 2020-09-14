@@ -60,6 +60,7 @@ class CH_MODELS_API MAN_10t {
     void SetChassisFixed(bool val) { m_fixed = val; }
     void SetChassisCollisionType(ChassisCollisionType val) { m_chassisCollisionType = val; }
 
+    void SetBrakeType(BrakeType brake_type) { m_brake_type = brake_type; }
     void SetTireType(TireModelType val) { m_tireType = val; }
 
     void SetInitPosition(const ChCoordsys<>& pos) { m_initPos = pos; }
@@ -68,6 +69,8 @@ class CH_MODELS_API MAN_10t {
     void SetShaftBasedDrivetrain(bool val) { m_use_shafts_drivetrain = val; }
 
     void SetTireStepSize(double step_size) { m_tire_step_size = step_size; }
+
+    void EnableBrakeLocking(bool lock) { m_brake_locking = lock; }
 
     ChSystem* GetSystem() const { return m_vehicle->GetSystem(); }
     ChWheeledVehicle& GetVehicle() const { return *m_vehicle; }
@@ -96,7 +99,9 @@ class CH_MODELS_API MAN_10t {
     ChContactMethod m_contactMethod;
     ChassisCollisionType m_chassisCollisionType;
     bool m_fixed;
+    bool m_brake_locking;
 
+    BrakeType m_brake_type;
     TireModelType m_tireType;
 
     double m_tire_step_size;

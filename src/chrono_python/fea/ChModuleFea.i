@@ -134,6 +134,13 @@ using namespace chrono::fea;
 
 %template(vector_ChNodeFEAxyzrot) std::vector< std::shared_ptr<chrono::fea::ChNodeFEAxyzrot> >;
 %template(vector_ChNodeFEAxyz)    std::vector< std::shared_ptr<chrono::fea::ChNodeFEAxyz> >;
+%template(vector_ChNodeFEAxyzD)    std::vector< std::shared_ptr<chrono::fea::ChNodeFEAxyzD> >;
+%template(vector_ChNodeFEAxyzDD)    std::vector< std::shared_ptr<chrono::fea::ChNodeFEAxyzDD> >;
+%template(vector_ChNodeFEAcurv)    std::vector< std::shared_ptr<chrono::fea::ChNodeFEAcurv> >;
+%template(vector_ChElementBeamEuler)    std::vector< std::shared_ptr<chrono::fea::ChElementBeamEuler> >;
+%template(vector_ChElementBeamIGA)    std::vector< std::shared_ptr<chrono::fea::ChElementBeamIGA> >;
+%template(vector_ChElementCableANCF)    std::vector< std::shared_ptr<chrono::fea::ChElementCableANCF> >;
+%template(vector_ChElementBeamANCF)    std::vector< std::shared_ptr<chrono::fea::ChElementBeamANCF> >;
 
 //
 // For each class, keep updated the  A, B, C sections: 
@@ -172,11 +179,22 @@ using namespace chrono::fea;
 %shared_ptr(chrono::fea::ChContinuumPlasticVonMises)
 %shared_ptr(chrono::fea::ChContinuumDruckerPrager)
 %shared_ptr(chrono::fea::ChBeamSection)
+%shared_ptr(chrono::fea::ChBeamSectionShape)
+%shared_ptr(chrono::fea::ChBeamSectionShapeCircular)
+%shared_ptr(chrono::fea::ChBeamSectionShapeRectangular)
+%shared_ptr(chrono::fea::ChBeamSectionShapePolyline)
+%shared_ptr(chrono::fea::ChBeamSectionEuler)
+%shared_ptr(chrono::fea::ChBeamSectionEulerSimple)
+%shared_ptr(chrono::fea::ChBeamSectionEulerAdvanced)
+%shared_ptr(chrono::fea::ChBeamSectionEulerGeneric)
+%shared_ptr(chrono::fea::ChBeamSectionEulerEasyCircular)
+%shared_ptr(chrono::fea::ChBeamSectionEulerEasyRectangular)
 %shared_ptr(chrono::fea::ChBeamSectionBasic)
 %shared_ptr(chrono::fea::ChBeamSectionCable)
 %shared_ptr(chrono::fea::ChBeamSectionAdvanced)
-%shared_ptr(chrono::fea::ChBeamSectionProperties)
 %shared_ptr(chrono::fea::ChBeamSectionCosserat)
+%shared_ptr(chrono::fea::ChBeamSectionCosseratEasyCircular)
+%shared_ptr(chrono::fea::ChBeamSectionCosseratEasyRectangular)
 %shared_ptr(chrono::fea::ChElasticityCosserat)
 %shared_ptr(chrono::fea::ChElasticityCosseratSimple)
 %shared_ptr(chrono::fea::ChElasticityCosseratGeneric)
@@ -186,6 +204,12 @@ using namespace chrono::fea;
 %shared_ptr(chrono::fea::ChPlasticityCosseratLumped)
 %shared_ptr(chrono::fea::ChDampingCosserat)
 %shared_ptr(chrono::fea::ChDampingCosseratLinear)
+%shared_ptr(chrono::fea::ChDampingCosseratRayleigh)
+%shared_ptr(chrono::fea::ChInertiaCosserat)
+%shared_ptr(chrono::fea::ChInertiaCosseratUniformDensity)
+%shared_ptr(chrono::fea::ChInertiaCosseratSimple)
+%shared_ptr(chrono::fea::ChInertiaCosseratAdvanced)
+%shared_ptr(chrono::fea::ChInertiaCosseratMassref)
 %shared_ptr(chrono::fea::ChElementBeam)
 %shared_ptr(chrono::fea::ChElementBeamEuler)
 %shared_ptr(chrono::fea::ChElementBeamANCF)
@@ -243,6 +267,8 @@ using namespace chrono::fea;
 %shared_ptr(chrono::fea::ChElasticityReissnerOrthotropic)
 %shared_ptr(chrono::fea::ChElasticityReissnerGeneric)
 %shared_ptr(chrono::fea::ChPlasticityReissner)
+%shared_ptr(chrono::fea::ChDampingReissner)
+%shared_ptr(chrono::fea::ChDampingReissnerRayleigh)
 %shared_ptr(chrono::fea::ChMaterialShellKirchhoff)
 %shared_ptr(chrono::fea::ChElasticityKirchhoff)
 %shared_ptr(chrono::fea::ChElasticityKirchhoffIsothropic)
@@ -250,6 +276,7 @@ using namespace chrono::fea;
 %shared_ptr(chrono::fea::ChElasticityKirchhoffGeneric)
 %shared_ptr(chrono::fea::ChPlasticityKirchhoff)
 %shared_ptr(chrono::fea::ChDampingKirchhoff)
+%shared_ptr(chrono::fea::ChDampingKirchhoffRayleigh)
 %shared_ptr(chrono::fea::ChElementShell)
 %shared_ptr(chrono::fea::ChElementShellReissner4)
 %shared_ptr(chrono::fea::ChElementShellANCF)
@@ -339,8 +366,11 @@ using namespace chrono::fea;
 %include "../../chrono/fea/ChElementBar.h"
 %include "../../chrono/fea/ChElementSpring.h"
 %include "../../chrono/fea/ChElementCorotational.h"
+%include "../../chrono/fea/ChBeamSectionShape.h"
 %include "../../chrono/fea/ChBeamSection.h"
 %include "../../chrono/fea/ChBeamSectionCosserat.h"
+%include "../../chrono/fea/ChBeamSectionEuler.h"
+%include "../../chrono/fea/ChBeamSectionCable.h"
 %include "../../chrono/fea/ChElementBeam.h"
 %include "../../chrono/fea/ChElementBeamEuler.h"
 %include "../../chrono/fea/ChElementBeamANCF.h"
@@ -361,12 +391,14 @@ using namespace chrono::fea;
 %ignore chrono::fea::ChElasticityReissner::ComputeStiffnessMatrix;
 %ignore chrono::fea::ChPlasticityReissner::ComputeStiffnessMatrixElastoplastic;
 %ignore chrono::fea::ChDampingReissner::ComputeDampingMatrix;
+%ignore chrono::fea::ChDampingReissnerRayleigh::ComputeDampingMatrix;
 %ignore chrono::fea::ChMaterialShellReissner::ComputeStiffnessMatrix;
 %include "../../chrono/fea/ChMaterialShellReissner.h"
 // TODO: if eigen::ref can be wrapped, unignore these,
 %ignore chrono::fea::ChElasticityKirchhoff::ComputeStiffnessMatrix;
 %ignore chrono::fea::ChPlasticityKirchhoff::ComputeStiffnessMatrixElastoplastic;
 %ignore chrono::fea::ChDampingKirchhoff::ComputeDampingMatrix;
+%ignore chrono::fea::ChDampingKirchhoffReissner::ComputeDampingMatrix;
 %ignore chrono::fea::ChMaterialShellKirchhoff::ComputeStiffnessMatrix;
 %include "../../chrono/fea/ChMaterialShellKirchhoff.h"
 %include "../../chrono/fea/ChElementShell.h"
@@ -416,6 +448,11 @@ using namespace chrono::fea;
 %DefSharedPtrDynamicDowncast(chrono::fea,ChElasticityCosserat,ChElasticityCosseratAdvanced)
 %DefSharedPtrDynamicDowncast(chrono::fea,ChElasticityCosserat,ChElasticityCosseratMesh)
 %DefSharedPtrDynamicDowncast(chrono::fea,ChPlasticityCosserat,ChPlasticityCosseratLumped)
+%DefSharedPtrDynamicDowncast(chrono::fea,ChInertiaCosserat,ChInertiaCosseratSimple)
+%DefSharedPtrDynamicDowncast(chrono::fea,ChInertiaCosserat,ChInertiaCosseratAdvanced)
+%DefSharedPtrDynamicDowncast(chrono::fea,ChInertiaCosserat,ChInertiaCosseratMassref)
+%DefSharedPtrDynamicDowncast(chrono::fea,ChDampingCosserat,ChDampingCosseratLinear)
+%DefSharedPtrDynamicDowncast(chrono::fea,ChDampingCosserat,ChDampingCosseratRayleigh)
 %DefSharedPtrDynamicDowncast(chrono::fea,ChElasticityReissner,ChElasticityReissnerIsothropic)
 %DefSharedPtrDynamicDowncast(chrono::fea,ChElasticityReissner,ChElasticityReissnerOrthotropic)
 %DefSharedPtrDynamicDowncast(chrono::fea,ChElasticityReissner,ChElasticityReissnerGeneric)
@@ -444,6 +481,11 @@ using namespace chrono::fea;
 %DefSharedPtrDynamicDowncast(chrono::fea,ChNodeFEAbase,ChNodeFEAxyzDD)
 %DefSharedPtrDynamicDowncast(chrono::fea,ChNodeFEAbase,ChNodeFEAxyzrot)
 %DefSharedPtrDynamicDowncast2NS(chrono,chrono::fea,ChAsset,ChVisualizationFEAmesh)
+%DefSharedPtrDynamicDowncast2NS(chrono,chrono::fea,ChContactable,ChContactTriangleXYZ)
+%DefSharedPtrDynamicDowncast2NS(chrono,chrono::fea,ChContactable,ChContactTriangleXYZROT)
+%DefSharedPtrDynamicDowncast2NS(chrono,chrono::fea,ChContactable,ChContactNodeXYZ)
+%DefSharedPtrDynamicDowncast2NS(chrono,chrono::fea,ChContactable,ChContactNodeXYZROT)
+//%DefSharedPtrDynamicDowncast2NS(chrono,chrono::fea,ChContactable,ChNodeMeshless)
 
 //
 // ADDITIONAL C++ FUNCTIONS / CLASSES THAT ARE USED ONLY FOR PYTHON WRAPPER

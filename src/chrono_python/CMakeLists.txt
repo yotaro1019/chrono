@@ -88,8 +88,9 @@ include(${SWIG_USE_FILE})
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
   set(CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG}   /bigobj")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /bigobj")
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /bigobj")
 endif()
-
+ 
 # Set location of SWIG-generated files.
 # Note that *.py files are also generated in this location.
 set(CMAKE_SWIG_OUTDIR "${PROJECT_BINARY_DIR}/swig")
@@ -199,7 +200,7 @@ add_custom_command(TARGET ${SWIG_MODULE_${CHPY_CORE}_REAL_NAME}
                    COMMAND ${CMAKE_COMMAND} -E copy ${CHPY_CORE_PY_FILE} ${CHPY_CORE_PYD_PATH}/${CHPY_PACKAGENAME})
 
 # Set default path for Chrono data files relative to python demos in source tree
-set(PYCHRONO_DATA_PATH "../../../data" CACHE STRING "Path to Chrono data files (for Python demos)")
+set(PYCHRONO_DATA_PATH "../../../../data" CACHE STRING "Path to Chrono data files (for Python demos)")
 
 # Generate the __init__.py file using substitution variables and place it in a temporary place
 configure_file(${CMAKE_SOURCE_DIR}/contrib/packaging-python/__init__.py.in
