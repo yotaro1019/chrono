@@ -131,10 +131,6 @@ void ChChassis::Synchronize(double time, ChVector<> act_fforce, ChVector<>  act_
     m_body->Empty_forces_accumulators();
     m_body->Accumulate_force(act_fforce, COM_POS_global, false);
     m_body->Accumulate_torque(act_fmoment, false);   
-
-    ChVector<> COM_force = m_body->Get_Xforce();
-    ChVector<> COM_torque = m_body->Get_Xtorque();
-
 }
 
 
