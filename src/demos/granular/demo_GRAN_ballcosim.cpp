@@ -147,6 +147,10 @@ int main(int argc, char* argv[]) {
     gran_sys.set_static_friction_coeff_SPH2WALL(params.static_friction_coeffS2W);
     gran_sys.set_static_friction_coeff_SPH2MESH(params.static_friction_coeffS2M);
 
+    //gran_sys.set_rolling_coeff_SPH2SPH(params.rolling_friction_coeffS2S);
+    //gran_sys.set_rolling_coeff_SPH2WALL(params.rolling_friction_coeffS2W);
+    //gran_sys.set_rolling_coeff_SPH2MESH(params.rolling_friction_coeffS2M);
+
     std::string mesh_filename(GetChronoDataFile("granular/demo_GRAN_ballcosim/sphere.obj"));
     std::vector<string> mesh_filenames(1, mesh_filename);
 
@@ -155,7 +159,7 @@ int main(int argc, char* argv[]) {
     float ball_radius = 20.f;
     std::vector<ChMatrix33<float>> mesh_rotscales(1, ChMatrix33<float>(ball_radius));
 
-    float ball_density = params.sphere_density / 100.f;
+    float ball_density = params.sphere_density;
     float ball_mass = (float)(4.f * CH_C_PI * ball_radius * ball_radius * ball_radius * ball_density / 3.f);
     std::vector<float> mesh_masses(1, ball_mass);
 
@@ -175,7 +179,7 @@ int main(int argc, char* argv[]) {
     // Create rigid ball_body simulation
     ChSystemSMC sys_ball;
     sys_ball.SetContactForceModel(ChSystemSMC::ContactForceModel::Hooke);
-    sys_ball.SetTimestepperType(ChTimestepper::Type::EULER_EXPLICIT);
+    sys_ball.SetTimestepperType(ChTimestepper::Type::EULER_IMPLICIT);
     sys_ball.Set_G_acc(ChVector<>(0, 0, -980));
 
     double inertia = 2.0 / 5.0 * ball_mass * ball_radius * ball_radius;
@@ -190,6 +194,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Rendering at " << out_fps << "FPS" << std::endl;
 
     unsigned int out_steps = (unsigned int)(1.0 / (out_fps * iteration_step));
+    unsigned int total_frames = (unsigned int)((float)params.time_end * out_fps);
 
     int currframe = 0;
     unsigned int curr_step = 0;
@@ -231,17 +236,20 @@ int main(int argc, char* argv[]) {
         ball_body->Accumulate_torque(ChVector<>(ball_force[3], ball_force[4], ball_force[5]), false);
 
         if (curr_step % out_steps == 0) {
-            std::cout << "Rendering frame " << currframe << std::endl;
+            std::cout << "Rendering frame " << currframe << " of " << total_frames << std::endl;
             char filename[100];
             sprintf(filename, "%s/step%06d", params.output_dir.c_str(), currframe++);
             gran_sys.writeFile(std::string(filename));
+            gran_sys.write_meshes(std::string(filename));
 
+            /*  // disable meshframes output, for it may be confusing for users dealing with C::Granular only
             std::string mesh_output = std::string(filename) + "_meshframes.csv";
             std::ofstream meshfile(mesh_output);
             std::ostringstream outstream;
             outstream << "mesh_name,dx,dy,dz,x1,x2,x3,y1,y2,y3,z1,z2,z3,sx,sy,sz\n";
             writeMeshFrames(outstream, *ball_body, mesh_filename, ball_radius);
             meshfile << outstream.str();
+            */
         }
     }
 

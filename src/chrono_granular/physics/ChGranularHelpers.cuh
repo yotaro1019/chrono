@@ -143,13 +143,13 @@ inline __device__ size_t findContactPairInfo(GranSphereDataPtr sphere_data,
     for (unsigned int contact_id = 0; contact_id < MAX_SPHERES_TOUCHED_BY_SPHERE; contact_id++) {
         size_t contact_index = body_A_offset + contact_id;
         // check whether the slot is free right now
-        if (sphere_data->contact_partners_map[contact_index] == NULL_GRANULAR_ID) {
+        if (sphere_data->contact_partners_map[contact_index] == NULL_GRANULAR_ID || sphere_data->contact_partners_map[contact_index] == body_B) {
             // claim this slot for ourselves, atomically
             // if the CAS returns NULL_GRANULAR_ID, it means that the spot was free and we claimed it
             unsigned int body_B_returned =
                 atomicCAS(sphere_data->contact_partners_map + contact_index, NULL_GRANULAR_ID, body_B);
             // did we get the spot? if so, claim it
-            if (NULL_GRANULAR_ID == body_B_returned) {
+            if (NULL_GRANULAR_ID == body_B_returned || body_B == body_B_returned) {
                 // make sure this contact is marked active
                 sphere_data->contact_active_map[contact_index] = true;
                 return contact_index;
@@ -230,7 +230,7 @@ inline __device__ bool checkSpheresContacting_int(const int3& sphereA_pos,
 
     bool contact_in_SD = checkLocalPointInSD(contact_pos, gran_params);
 
-    const int64_t contact_threshold = (4l * gran_params->sphereRadius_SU) * gran_params->sphereRadius_SU;
+    const int64_t contact_threshold = (4 * (int64_t)gran_params->sphereRadius_SU) * (int64_t)gran_params->sphereRadius_SU;
 
     return contact_in_SD && penetration_int < contact_threshold;
 }
@@ -258,7 +258,11 @@ inline __device__ float3 computeRollingAngAcc(GranSphereDataPtr sphere_data,
                 // Rolling component
                 // v_rot = l_p (w_p x n) - l_n (w_n x n)
                 const float3 v_rot = Cross(omega_rel, r_contact);
-                if (Length(v_rot) < 1e-7f) {  // TODO choose epsilon in SU L/T units
+                float v_rot_su = Length(v_rot);
+                float velo_su2uu = (float)(gran_params->LENGTH_UNIT/gran_params->TIME_UNIT);
+                // convert v_rot to user unit for threshold comparison
+                float v_rot_uu = v_rot_su * velo_su2uu;
+                if (v_rot_uu < 5e-3f) {  
                     return make_float3(0.f, 0.f, 0.f);
                 }
 
